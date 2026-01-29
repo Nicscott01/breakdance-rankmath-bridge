@@ -9,6 +9,7 @@
 	var fetchedOnce = {};
 	var refreshedOnce = {};
 	var loggedOnce = {};
+	var storageKeyPrefix = 'bd_rm_content_';
 
 	function getPostId() {
 		if (settings.postId) {
@@ -28,6 +29,24 @@
 				loggedOnce.refresh = true;
 			}
 			window.rankMathEditor.refresh('content');
+		}
+	}
+
+	function getCachedFromStorage(postId) {
+		try {
+			return window.sessionStorage ? window.sessionStorage.getItem(storageKeyPrefix + postId) : null;
+		} catch (e) {
+			return null;
+		}
+	}
+
+	function setCachedToStorage(postId, content) {
+		try {
+			if (window.sessionStorage) {
+				window.sessionStorage.setItem(storageKeyPrefix + postId, content);
+			}
+		} catch (e) {
+			// no-op
 		}
 	}
 
@@ -51,6 +70,7 @@
 		}).then(function (response) {
 			if (response && response.content) {
 				cache[postId] = response.content;
+				setCachedToStorage(postId, response.content);
 				if (settings.debug) {
 					console.log('[Breakdance RankMath Bridge] Rendered content received', {
 						postId: postId,
@@ -80,6 +100,12 @@
 			if (!postId) {
 				return content;
 			}
+			if (!cache[postId]) {
+				var stored = getCachedFromStorage(postId);
+				if (stored) {
+					cache[postId] = stored;
+				}
+			}
 			if (cache[postId]) {
 				if (settings.mode === 'combine') {
 					return content ? (content + "\n\n" + cache[postId]) : cache[postId];
@@ -104,7 +130,12 @@
 				console.log('[Breakdance RankMath Bridge] rank_math_loaded');
 				loggedOnce.loaded = true;
 			}
-			refreshRankMath();
+			var postId = getPostId();
+			if (postId && cache[postId]) {
+				refreshRankMath();
+			} else if (postId && !loading[postId]) {
+				fetchRenderedContent(postId);
+			}
 		}
 	);
 })(window.wp, window, document);

@@ -36,6 +36,7 @@ class Breakdance_RankMath_Bridge {
 	 */
 	private $content_mode = 'breakdance';
 
+
 	/**
 	 * Get instance
 	 *
@@ -528,6 +529,7 @@ class Breakdance_RankMath_Bridge {
 
 		return $cookies;
 	}
+
 
 	/**
 	 * Check if Breakdance is available
