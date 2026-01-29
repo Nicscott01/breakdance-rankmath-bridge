@@ -36,6 +36,13 @@ class Breakdance_RankMath_Bridge {
 	 */
 	private $content_mode = 'breakdance';
 
+	/**
+	 * Debug flag
+	 *
+	 * @var bool
+	 */
+	private $debug_enabled = false;
+
 
 	/**
 	 * Get instance
@@ -103,7 +110,7 @@ class Breakdance_RankMath_Bridge {
 					'nonce'   => wp_create_nonce( 'wp_rest' ),
 					'postId'  => (int) $post_id,
 					'mode'    => $this->content_mode,
-					'debug'   => (bool) ( defined( 'WP_DEBUG' ) && WP_DEBUG ),
+					'debug'   => $this->debug_enabled,
 				)
 			) . ';',
 			'before'
@@ -156,27 +163,11 @@ class Breakdance_RankMath_Bridge {
 	public function rest_get_rendered_content( $request ) {
 		$post_id = (int) $request->get_param( 'post_id' );
 		$content = $this->get_rendered_content_for_post( $post_id );
-		$preview = mb_substr( (string) $content, 0, 300 );
-		$debug   = array(
-			'post_id'           => $post_id,
-			'timestamp'         => time(),
-			'mode'              => $this->content_mode,
-			'content_len'       => strlen( (string) $content ),
-			'content_sha1'      => sha1( (string) $content ),
-			'content_preview'   => $preview,
-			'breakdance_active' => $this->is_breakdance_available(),
-			'is_breakdance_post' => $this->is_breakdance_post( $post_id ),
-		);
-
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-			error_log( '[Breakdance RankMath Bridge] REST response debug: ' . wp_json_encode( $debug ) );
-		}
 
 		return rest_ensure_response(
 			array(
 				'post_id' => $post_id,
 				'content' => $content,
-				'debug'   => $debug,
 			)
 		);
 	}
@@ -243,14 +234,14 @@ class Breakdance_RankMath_Bridge {
 		) );
 
 		if ( is_wp_error( $response ) ) {
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			if ( $this->debug_enabled && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 				error_log( '[Breakdance RankMath Bridge] wp_remote_get error: ' . $response->get_error_message() );
 			}
 			return $content;
 		}
 
 		$status_code = wp_remote_retrieve_response_code( $response );
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+		if ( $this->debug_enabled && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			error_log( '[Breakdance RankMath Bridge] wp_remote_get status=' . $status_code . ' url=' . $request_url );
 		}
 
@@ -263,20 +254,20 @@ class Breakdance_RankMath_Bridge {
 				'cookies'     => $cookies,
 			) );
 			if ( is_wp_error( $response ) ) {
-				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				if ( $this->debug_enabled && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 					error_log( '[Breakdance RankMath Bridge] wp_remote_get preview error: ' . $response->get_error_message() );
 				}
 				return $content;
 			}
 			$status_code = wp_remote_retrieve_response_code( $response );
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			if ( $this->debug_enabled && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 				error_log( '[Breakdance RankMath Bridge] wp_remote_get preview status=' . $status_code . ' url=' . $preview_link );
 			}
 		}
 
 		$html = wp_remote_retrieve_body( $response );
 		if ( empty( $html ) ) {
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			if ( $this->debug_enabled && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 				error_log( '[Breakdance RankMath Bridge] wp_remote_get empty body for ' . $request_url );
 			}
 			return $content;
@@ -412,7 +403,7 @@ class Breakdance_RankMath_Bridge {
 			$source  = $this->is_breakdance_available() ? 'frontend_fetch_fallback' : 'frontend_fetch_no_breakdance';
 		}
 
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+		if ( $this->debug_enabled && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			error_log( '[Breakdance RankMath Bridge] content source=' . $source . ' post_id=' . $post_id . ' len=' . strlen( (string) $content ) );
 		}
 
