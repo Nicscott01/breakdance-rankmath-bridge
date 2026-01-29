@@ -219,16 +219,26 @@ class Breakdance_RankMath_Bridge {
 	private function get_frontend_rendered_content( $post_id ) {
 		$content = '';
 
+		$post      = get_post( $post_id );
 		$permalink = get_permalink( $post_id );
 		if ( ! $permalink ) {
 			return $content;
 		}
 
-		$response = wp_remote_get( $permalink, array(
+		$preview_link = '';
+		if ( $post && 'publish' !== get_post_status( $post_id ) && function_exists( 'get_preview_post_link' ) ) {
+			$preview_link = get_preview_post_link( $post );
+		}
+
+		$request_url = $preview_link ? $preview_link : $permalink;
+		$cookies     = $preview_link ? $this->get_request_cookies_for_preview() : array();
+
+		$response = wp_remote_get( $request_url, array(
 			'timeout'     => 15,
 			'sslverify'   => false,
 			'redirection' => 5,
 			'user-agent'  => 'Breakdance-RankMath-Bridge/2.1',
+			'cookies'     => $cookies,
 		) );
 
 		if ( is_wp_error( $response ) ) {
@@ -238,10 +248,35 @@ class Breakdance_RankMath_Bridge {
 			return $content;
 		}
 
+		$status_code = wp_remote_retrieve_response_code( $response );
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( '[Breakdance RankMath Bridge] wp_remote_get status=' . $status_code . ' url=' . $request_url );
+		}
+
+		if ( in_array( (int) $status_code, array( 401, 403, 404 ), true ) && $preview_link && $request_url !== $preview_link ) {
+			$response = wp_remote_get( $preview_link, array(
+				'timeout'     => 15,
+				'sslverify'   => false,
+				'redirection' => 5,
+				'user-agent'  => 'Breakdance-RankMath-Bridge/2.1',
+				'cookies'     => $cookies,
+			) );
+			if ( is_wp_error( $response ) ) {
+				if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+					error_log( '[Breakdance RankMath Bridge] wp_remote_get preview error: ' . $response->get_error_message() );
+				}
+				return $content;
+			}
+			$status_code = wp_remote_retrieve_response_code( $response );
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( '[Breakdance RankMath Bridge] wp_remote_get preview status=' . $status_code . ' url=' . $preview_link );
+			}
+		}
+
 		$html = wp_remote_retrieve_body( $response );
 		if ( empty( $html ) ) {
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-				error_log( '[Breakdance RankMath Bridge] wp_remote_get empty body for ' . $permalink );
+				error_log( '[Breakdance RankMath Bridge] wp_remote_get empty body for ' . $request_url );
 			}
 			return $content;
 		}
@@ -469,6 +504,29 @@ class Breakdance_RankMath_Bridge {
 		$GLOBALS['post']         = $old_post;
 
 		return $result;
+	}
+
+	/**
+	 * Build cookies for preview requests (logged-in user context)
+	 *
+	 * @return array
+	 */
+	private function get_request_cookies_for_preview() {
+		if ( ! is_user_logged_in() ) {
+			return array();
+		}
+
+		$cookies = array();
+		foreach ( $_COOKIE as $name => $value ) {
+			$cookies[] = new \WP_Http_Cookie(
+				array(
+					'name'  => $name,
+					'value' => $value,
+				)
+			);
+		}
+
+		return $cookies;
 	}
 
 	/**
