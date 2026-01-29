@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: Breakdance Rank Math Bridge
- * Plugin URI: https://alltradesnj.com
+ * Plugin URI: https://www.crearewebsolutions.com/blog/breakdance-rank-math-scores/
  * Description: Injects rendered Breakdance output into Rank Math analysis (editor + bulk recalculation)
  * Version: 2.1.0
- * Author: AllTradesNJ
- * Author URI: https://alltradesnj.com
+ * Author: Nic Scott
+ * Author URI: https://crearewebsolutions.com
  * License: GPL v2 or later
  */
 
